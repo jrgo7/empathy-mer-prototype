@@ -1,9 +1,19 @@
 from deepface import DeepFace
 import cv2 as cv
+from cv2_enumerate_cameras import enumerate_cameras
+from tabulate import tabulate
 
 # TODO: Analyze audio as well
 # Either we get an speech emotion recognition library and fuse these two together
 # Or we get something that detects emotion from both already (and replace this entirely)
+
+
+def select_camera() -> int:
+    camera_info_headers = ['Index', 'Camera Name', 'Path']
+    camera_info = [[camera.index, camera.name, camera.path] for camera in enumerate_cameras()]
+    print(tabulate(camera_info, headers=camera_info_headers))
+    return int(input(">>> Select camera index: "))
+
 
 def analyze_video(frame: cv.UMat) -> str:
     # Analyze a video frame and return the dominant emotion detected
@@ -19,7 +29,7 @@ def put_text(frame: cv.UMat, text: str, position: tuple) -> None:
 
 def main():
     # Initialize video capture
-    cap = cv.VideoCapture(0)
+    cap = cv.VideoCapture(select_camera())
 
     while True:
         ret, frame = cap.read()
@@ -35,4 +45,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
