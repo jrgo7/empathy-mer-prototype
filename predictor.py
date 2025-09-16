@@ -7,7 +7,7 @@ from pathlib import Path
 
 class Predictor(ABC):
 
-    def test_predict_emotion(self, test_folder: Path) -> None:
+    async def test_predict_emotion(self, test_folder: Path) -> None:
         """
         Test the predict_emotion function on files in test_folder.
         """
@@ -15,7 +15,7 @@ class Predictor(ABC):
             logging.info(f"Predicting emotion of {file_name}")
             
             prev = time()
-            dominant_emotion, probabilities = self.predict_emotion(Path(test_folder, file_name))
+            dominant_emotion, probabilities = await self.predict_emotion(Path(test_folder, file_name))
             cur = time()
             diff = prev - cur
 
