@@ -3,6 +3,8 @@ import cv2 as cv
 import pyaudio
 from cv2_enumerate_cameras import enumerate_cameras
 from tabulate import tabulate
+from tkinter import simpledialog
+
 from video_predictor import VideoPredictor
 from audio_predictor import AudioPredictor
 
@@ -15,12 +17,13 @@ def select_camera() -> int:
     """
     Select a camera to use.
     """
-    camera_info_headers = ["Index", "Camera Name", "Path"]
-    camera_info = [
-        [camera.index, camera.name, camera.path] for camera in enumerate_cameras()
-    ]
-    print(tabulate(camera_info, headers=camera_info_headers))
-    return int(input(">>> Select camera index: "))
+    camera_info = "\n".join(
+        [f"{camera.index}\t{camera.name}" for camera in enumerate_cameras()]
+    )
+    return simpledialog.askinteger(
+        title="Select camera",
+        prompt=f"Index\t Camera\n{camera_info}\nEnter camera index:",
+    )
 
 
 def display_result(
@@ -94,11 +97,7 @@ def main() -> None:
     SECONDS = 3
     p = pyaudio.PyAudio()
     audio_stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=FS,
-        frames_per_buffer=CHUNK,
-        input=True,
+        format=pyaudio.paInt16, channels=1, rate=FS, frames_per_buffer=CHUNK, input=True
     )
 
     # Initalize predictors
