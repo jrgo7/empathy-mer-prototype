@@ -35,10 +35,10 @@ def display_result(
     dominant_emotion, emotion_probabilities = result
     x, y = position
     dy = 15
-    font = cv.FONT_HERSHEY_SIMPLEX
+    font = cv.FONT_HERSHEY_COMPLEX
     scale = 0.5
 
-    cv.putText(frame, dominant_emotion, (x, y), font, scale, color)
+    cv.putText(frame, dominant_emotion, (x, y), font, 1, color)
 
     for emotion, probabilty in emotion_probabilities.items():
         y += dy
@@ -46,7 +46,9 @@ def display_result(
         cv.putText(frame, text, (x, y), font, scale, color)
 
 
-def combine_emotion(video_result: dict, audio_result: dict) -> tuple[str, dict]:
+def combine_emotion(
+    video_probabilities: dict, audio_probabilities: dict
+) -> tuple[str, dict]:
     """
     Combine the video (face) and audio (voice) results.
     Audio and video are weighted 0.4 and 0.6 respectively.
@@ -65,12 +67,12 @@ def combine_emotion(video_result: dict, audio_result: dict) -> tuple[str, dict]:
     local_probabilities = {key: 0.0 for key in ALL_AUDIO_EMOTIONS}
 
     # Apply audio probabilities (weighted by 0.4)
-    for emotion, prob in audio_result.items():
+    for emotion, prob in audio_probabilities.items():
         if emotion in local_probabilities:
             local_probabilities[emotion] = prob * 0.4
 
     # Apply face probabilities (mapped and weighted by 0.6)
-    for face_emotion, prob in video_result.items():
+    for face_emotion, prob in video_probabilities.items():
         audio_key = FACE_TO_AUDIO_MAP.get(face_emotion)
         if audio_key is not None:
             local_probabilities[audio_key] += prob * 0.6
@@ -131,7 +133,9 @@ def main() -> None:
             display_result(video_frame, audio_result, (150, 32), COLOR_GREEN)
 
         if video_result and audio_result:
-            fused_result = combine_emotion(video_result, audio_result)
+            _, video_probabilities = video_result
+            _, audio_probabilities = audio_result
+            fused_result = combine_emotion(video_probabilities, audio_probabilities)
             display_result(video_frame, fused_result, (300, 32), COLOR_BLUE)
 
         cv.imshow("Empathy S13 G4 Prototype", video_frame)
