@@ -26,6 +26,24 @@ def select_camera() -> int:
     )
 
 
+def select_mic() -> int:
+    """
+    Select a microphone to use.
+    """
+    p = pyaudio.PyAudio()
+    mic_info = "\n".join(
+        [
+            f"{i}\t{p.get_device_info_by_index(i)['name']}"
+            for i in range(p.get_device_count())
+            if p.get_device_info_by_index(i)["maxInputChannels"] > 0
+        ]
+    )
+    return simpledialog.askinteger(
+        title="Select microphone",
+        prompt=f"Index\t Microphone\n{mic_info}\nEnter microphone index:",
+    )
+
+
 def display_result(
     frame: cv.UMat,
     result: tuple[str, dict],
@@ -89,6 +107,7 @@ def combine_emotion(
 def main() -> None:
     # Initialize video capture
     camera_index = select_camera()
+
     video_capture = cv.VideoCapture(camera_index)
 
     # Initialize audio capture
@@ -96,8 +115,14 @@ def main() -> None:
     FS = 16000  # sample rate
     SECONDS = 3
     p = pyaudio.PyAudio()
+    mic_index = select_mic()
     audio_stream = p.open(
-        format=pyaudio.paInt16, channels=1, rate=FS, frames_per_buffer=CHUNK, input=True
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=FS,
+        frames_per_buffer=CHUNK,
+        input=True,
+        input_device_index=mic_index,
     )
 
     # Initalize predictors
