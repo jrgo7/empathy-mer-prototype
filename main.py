@@ -1,7 +1,9 @@
+import threading
 import cv2 as cv
 import pyaudio
 from cv2_enumerate_cameras import enumerate_cameras
 from tabulate import tabulate
+from tkinter import simpledialog
 
 from video_predictor import VideoPredictor
 from audio_predictor import AudioPredictor
@@ -15,12 +17,13 @@ def select_camera() -> int:
     """
     Select a camera to use.
     """
-    camera_info_headers = ["Index", "Camera Name", "Path"]
-    camera_info = [
-        [camera.index, camera.name, camera.path] for camera in enumerate_cameras()
-    ]
-    print(tabulate(camera_info, headers=camera_info_headers))
-    return int(input(">>> Select camera index: "))
+    camera_info = "\n".join(
+        [f"{camera.index}\t{camera.name}" for camera in enumerate_cameras()]
+    )
+    return simpledialog.askinteger(
+        title="Select camera",
+        prompt=f"Index\t Camera\n{camera_info}\nEnter camera index:",
+    )
 
 
 def display_result(
@@ -94,47 +97,49 @@ def main() -> None:
     SECONDS = 3
     p = pyaudio.PyAudio()
     audio_stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=FS,
-        frames_per_buffer=CHUNK,
-        input=True,
+        format=pyaudio.paInt16, channels=1, rate=FS, frames_per_buffer=CHUNK, input=True
     )
 
-    # Initalize predictors and results
+    # Initalize predictors
     video_predictor = VideoPredictor()
     audio_predictor = AudioPredictor()
-    video_result = None
-    audio_result = None
-    fused_result = None
 
     # Main loop
-    tick = 0
     audio_frames = []
     is_quit = False
+
+    def analyze_emotions(video_frame, audio_frames, results):
+        results["video"] = video_predictor.predict_emotion(video_frame)
+        results["audio"] = audio_predictor.predict_emotion(audio_frames)
+
+    results = {"video": None, "audio": None}
+    analysis_thread = None
+
     while not is_quit:
         # Capture
         _, video_frame = video_capture.read()
         audio_frames.append(audio_stream.read(CHUNK, exception_on_overflow=False))
 
-        # Analyze
-        if tick % 15 == 0:
-            video_result = video_predictor.predict_emotion(video_frame)
-
+        # Analyze in thread
         if len(audio_frames) == int(FS / CHUNK * SECONDS):
-            audio_result = audio_predictor.predict_emotion(audio_frames)
+            if analysis_thread is None or not analysis_thread.is_alive():
+                analysis_thread = threading.Thread(
+                    target=analyze_emotions,
+                    args=(video_frame, audio_frames.copy(), results),
+                )
+                analysis_thread.start()
             audio_frames = []
 
         # Display
-        if video_result:
-            display_result(video_frame, video_result, (0, 32), COLOR_RED)
+        if results["video"]:
+            display_result(video_frame, results["video"], (0, 32), COLOR_RED)
 
-        if audio_result:
-            display_result(video_frame, audio_result, (150, 32), COLOR_GREEN)
+        if results["audio"]:
+            display_result(video_frame, results["audio"], (150, 32), COLOR_GREEN)
 
-        if video_result and audio_result:
-            _, video_probabilities = video_result
-            _, audio_probabilities = audio_result
+        if results["video"] and results["audio"]:
+            _, video_probabilities = results["video"]
+            _, audio_probabilities = results["audio"]
             fused_result = combine_emotion(video_probabilities, audio_probabilities)
             display_result(video_frame, fused_result, (300, 32), COLOR_BLUE)
 
@@ -143,8 +148,6 @@ def main() -> None:
         # Quit the program when we press 'q'
         if cv.waitKey(1) == ord("q"):
             is_quit = True
-
-        tick += 1
 
 
 if __name__ == "__main__":
